@@ -488,6 +488,11 @@ if (localMode) {
       }
     });
     window.addEventListener("pageshow", announce);
+    // On Safari, one iframe may load before its partner. Retry discovery
+    // until a real host UI snapshot arrives rather than silently waiting.
+    setInterval(() => {
+      if (localTransport.active && !localGameReady) announce();
+    }, 2200);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) announce();
       else releaseSpace();
