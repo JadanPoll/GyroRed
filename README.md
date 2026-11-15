@@ -1,51 +1,55 @@
 # GyroRed
 
-Motion-driven keyboard control and live 3D orientation visualization, reconstructed from the Python code sent by **Bryan Cho on July 15, 2024**.
+A phone-controlled desktop keyboard interface with a live 3D tilt visualizer. Reconstructed from Python code shared by **Bryan Cho on July 15, 2024**, and a screenshot of the original mobile Safari UI (`GyroRed_Static.png`, supplied separately via Google Drive).
 
-## What it does
+## Components
 
-A WebSocket connection receives mobile-device orientation, gravity accelerometer readings and gesture events. GyroRed renders an elongated wireframe cuboid in an OpenGL window and translates its tilt and gestures into simulated keyboard input through PyAutoGUI.
-
-| Input | Behavior |
+| File | Function |
 | --- | --- |
-| Accelerometer Y | Smoothed Z-axis rotation; tilt activates left/right arrow |
-| Accelerometer Z | Smoothed X-axis rotation; tilt activates up/down arrow |
-| `press` / `unpress` | Hold / release Space |
-| `tap`, quadrant 1 / 2 / 3 | Tap A / N / R |
-| `swipe`, up | Tap Space |
-| `swipe`, down / left / right | Hold direction for 80 ms, then press N and release |
+| `client/index.html`, `client/style.css`, `client/app.js` | Mobile controller: green wireframe, crosshairs, connection dialog, motion sensors, gesture controls |
+| `relay.py` | Serves the client and relays WebSocket messages between phone and desktop |
+| `gyro_red.py` | Desktop OpenGL visualizer; translates sensor events to keyboard events |
+| `requirements.txt` | Desktop and relay dependencies |
 
-The original code's smoothing factor (0.06), tilt scales (70° and 60° per 9.5 acceleration units), rectangle dimensions, and directional thresholds are retained. The original read-only yaw update was commented out and is still not applied.
+### Quick start
 
-## Install and run
-
-Requires Python 3.10+, a desktop environment with OpenGL/GLFW support, and OS permission for simulated keyboard input.
+Python 3.10+; desktop with OpenGL/GLFW and permission for simulated keyboard input.
 
 ```bash
 python -m pip install -r requirements.txt
-python gyro_red.py --ws-url wss://YOUR-RELAY
+python relay.py
 ```
 
-Alternatively set `GYRORED_WS_URL`. **The emailed code used `wss://gem-turquoise-suede.glitch.me` in 2024; this historical endpoint is not verified active.** The relay and phone-side sender are not included in the supplied email.
+The relay prints a **random room code** and a ready-to-copy desktop command. In a second terminal on the desktop, run the printed `python gyro_red.py --ws-url 'ws://127.0.0.1:8765/ws?role=receiver&room=...'` command. Leave both terminals running.
 
-Example relay messages:
+Open the controller at `http://localhost:8765/` to inspect the UI on the desktop. For **iPhone/iPad sensors**, the page must be hosted via **HTTPS**: mobile Safari disallows motion access on ordinary LAN HTTP. Forward the relay's HTTP port (8765) using an HTTPS/WebSocket-capable reverse proxy or trusted tunnel, then open its `https://...` URL on your phone. The UI automatically chooses the corresponding `wss://...` WebSocket address.
 
-```json
-{"gravityaccelerometer":{"x":0,"y":4.0,"z":9.0},"orientation":{"alpha":0,"beta":0,"gamma":0}}
-```
+Tap **Connect Phone**, enter the room code printed by `relay.py`, and tap **OK**. Safari will prompt for motion/orientation access. Keep the page in the foreground and focus a safe desktop text field to test inputs. The historical **Nathan A** and **Bryan B** buttons are retained as profile labels from the screenshot; they do not bypass pairing.
 
-```json
-{"type":"tap","quadrant":1}
-```
+**No hosted relay is included:** the screenshot showed `glowing-oasis-journey.glitch.me` and the 2024 desktop script used `gem-turquoise-suede.glitch.me`. Neither legacy service's availability or protocol is established, so the included relay is the supported integration point.
 
-```json
-{"type":"swipe","direction":"left"}
-```
+### Protocol
 
-**Warning:** Running this program sends keyboard input to the currently focused application. Test with a safe target window. Use Ctrl+C or close the visualization to stop.
+The browser sends JSON messages to `/ws?role=controller&room=ROOM_CODE`. The desktop uses the same address with `role=receiver`. Only a single controller can connect per relay instance, and a room secret is required on both sides.
 
-## Provenance and reconstruction
+| Browser action | Relay message | Desktop result |
+| --- | --- | --- |
+| Device accelerometer (about 30 Hz) | `{"gravityaccelerometer":{"x":0,"y":4,"z":9}}` | Smooth cuboid tilt and hold/release arrow keys |
+| Device orientation (up to 10 Hz) | `{"orientation":{"alpha":0,"beta":0,"gamma":0}}` | Stores orientation; yaw intentionally inactive |
+| Hold / release Space | `{"type":"press"}` / `{"type":"unpress"}` | Space down / up |
+| Tap Q1 / Q2 / Q3 | `{"type":"tap","quadrant":1}` (2, 3) | A / N / R |
+| Swipe up | `{"type":"swipe","direction":"up"}` | Tap Space |
+| Swipe down / left / right | `{"type":"swipe","direction":"left"}` | Hold direction for 80 ms, then N |
 
-The source was a PDF printout of a Gmail message, not a source file. Its PDF text extraction lost Python indentation. This repository reconstructs blocks and preserves the behavior while applying minimal operational repairs: a main-thread GLFW loop, a separate WebSocket receiver, disconnect handling, and release of held keys on shutdown. It is **not** a byte-for-byte transcription; no hardware/device integration test has been performed.
+Original smoothing (0.06), pitch/roll scaling and directional thresholds are preserved.
 
-The original program also imported `orientation` data and computed a yaw delta, but left the yaw assignment commented out; this reconstruction intentionally does not invent yaw behavior.
+### Operational notes
+
+- The browser needs motion permission; on iOS, `DeviceMotionEvent.requestPermission()` and `DeviceOrientationEvent.requestPermission()` must be called following a real tap.
+- The desktop program sends keys to the **focused application**. Test in a safe text editor, not a terminal with destructive commands.
+- A random room code is an access secret; do not publish it. The relay currently has no rate limiting or user accounts. Do not expose it to untrusted networks without an appropriately configured secure proxy and access policy.
+- This implementation was source-reviewed and uploaded, but has **not** been exercised against physical iOS sensors or a live remote WebSocket tunnel.
+
+## Provenance
+
+The original emailed Python snippet was extracted from an eight-page PDF that lost indentation. `gyro_red.py` restores its control mapping and wireframe drawing, with explicit keyboard release and reconnection handling. The client is a functional reinterpretation of the **single supplied screenshot**, not a recovery of the original page's hidden source code.
