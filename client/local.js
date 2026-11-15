@@ -24,6 +24,24 @@
       for (const listener of listeners) listener(envelope.from, envelope.payload);
     });
   }
+  // Visible failure reports for Instant Play's "What's happening?" panel.
+  // This is intentionally local only; it does not upload logs anywhere.
+  if (channel) {
+    const role = location.pathname.endsWith("demo.html") ? "host" : "controller";
+    const report = error => {
+      channel.postMessage({
+        protocol: "gyrored-local-v1",
+        from: role,
+        payload: {type: "diagnostic", error: String(error).slice(0, 600)}
+      });
+    };
+    window.addEventListener("error", event => {
+      report(event.message + " (" + (event.filename || "script") + ":" + event.lineno + ")");
+    });
+    window.addEventListener("unhandledrejection", event => {
+      report(event.reason?.stack || event.reason || "Unhandled promise rejection");
+    });
+  }
   window.GyroLocal = {
     enabled,
     available,
