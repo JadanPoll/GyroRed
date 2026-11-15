@@ -115,10 +115,20 @@ if (localMode) {
   } else {
     $("connection").textContent = "Local mode · waiting for controller";
     localTransport.listen((from, message) => {
-      if (from === "controller") handleControlMessage(message);
+      if (from === "controller" && localTransport.active) handleControlMessage(message);
     });
-    controls();
-    localTransport.send("host", {type: "hello"});
+    localTransport.onRoleChange(active => {
+      if (active) {
+        $("connection").textContent = "Game ready · waiting for controller";
+        controls();
+        localTransport.send("host", {type: "hello"});
+      } else {
+        $("connection").textContent = "Game paused · another tab is active";
+        braking = false;
+        keyBrake = false;
+        keyThrottle = false;
+      }
+    });
     window.addEventListener("pageshow", () => {
       controls();
       localTransport.send("host", {type: "hello"});
@@ -158,6 +168,10 @@ function steering() {
 function draw(now) {
   const dt = Math.min((now - last)/1000, .05);
   last = now;
+  if (localMode && !localTransport.active) {
+    requestAnimationFrame(draw);
+    return;
+  }
   const activeThrottle = fuel <= 0 ? 0 : (keyThrottle ? 100 : throttle);
   const activeBrake = braking || keyBrake;
   if (mode === "race") {
