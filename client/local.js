@@ -152,7 +152,14 @@
         evaluate();
       }
     });
-    window.addEventListener("pagehide", () => post({type:"__bye"}));
+    window.addEventListener("pagehide", () => {
+      if (role === "controller" && active) {
+        // Do not strand an old held Space/Brake on ordinary tab navigation.
+        post({type:"unpress"});
+        post({gravityaccelerometer:{x:0,y:0,z:0}});
+      }
+      post({type:"__bye"});
+    });
     window.addEventListener("pageshow", () => {
       announce();
       evaluate();
