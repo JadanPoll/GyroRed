@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <title>GyroRed — Motion Controller</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="crosshair vertical" aria-hidden="true"></div>
+    <div class="crosshair horizontal" aria-hidden="true"></div>
+    <header class="top">
+      <div class="brand">GYRO<span>RED</span><small>MOTION CONTROLLER</small></div>
+      <div class="connection">
+        <button class="connect" id="connectButton" type="button">Connect Phone</button>
+        <p id="status" role="status" aria-live="polite">Disconnected</p>
+      </div>
+    </header>
+
+    <div class="canvas-wrap" aria-label="Live device tilt visualization">
+      <canvas id="gyroCanvas"></canvas>
+      <div class="readout">
+        <span>PITCH <b id="pitch">0°</b></span>
+        <span>ROLL <b id="roll">0°</b></span>
+      </div>
+    </div>
+
+    <div class="controls" aria-label="Touch controller">
+      <div class="quadrants">
+        <button data-quadrant="1" class="tap">A <small>Q1</small></button>
+        <button data-quadrant="2" class="tap">N <small>Q2</small></button>
+        <button data-quadrant="3" class="tap">R <small>Q3</small></button>
+      </div>
+      <button id="hold" class="hold" type="button">HOLD SPACE</button>
+      <p class="gesture-hint">Swipe anywhere in the controller area: up / down / left / right</p>
+    </div>
+    <footer>GYRORED • <span id="eventCount">0</span> EVENTS SENT</footer>
+  </main>
+
+  <div class="modal-backdrop" id="backdrop">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <h1 id="dialogTitle">Connect Phone</h1>
+      <form id="connectForm">
+        <label for="room">Room code from your desktop relay</label>
+        <div class="join">
+          <input id="room" placeholder="Enter room code" autocomplete="off" required spellcheck="false">
+          <button type="submit">OK</button>
+        </div>
+        <label for="relay">WebSocket relay address</label>
+        <input id="relay" type="text" spellcheck="false" autocomplete="off" aria-describedby="relayHelp">
+        <p class="help" id="relayHelp">Defaults to the same host as this page.</p>
+        <div class="presets">
+          <button type="button" data-profile="Nathan A">Nathan A</button>
+          <button type="button" data-profile="Bryan B">Bryan B</button>
+        </div>
+        <p class="help">Profiles label the controller only; they do not replace your private room code.</p>
+        <p id="dialogError" role="alert"></p>
+        <button type="button" class="cancel" id="cancel">Cancel</button>
+      </form>
+    </section>
+  </div>
+</body>
+</html>
