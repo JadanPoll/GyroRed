@@ -204,7 +204,7 @@ function connect(event) {
       clearUI();
       if (!closing) {
         errorLabel.textContent = event.code === 1006
-          ? "Connection failed. Check relay address, room code, and server."
+          ? "Connection failed. Check the code and relay, or close another connected controller tab."
           : "Connection closed (" + event.code + ").";
         showDialog();
       }
