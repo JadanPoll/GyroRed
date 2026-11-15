@@ -114,6 +114,7 @@ def make_app(room):
     app = web.Application()
     app.router.add_get("/ws", state.websocket)
     app.router.add_get("/", lambda request: web.FileResponse(ROOT / "index.html"))
+    app.router.add_get("/demo", lambda request: web.FileResponse(ROOT / "demo.html"))
     app.router.add_static("/static/", ROOT, show_index=False)
     return app
 
