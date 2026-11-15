@@ -1,13 +1,19 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const canvas = $("road"), ctx = canvas.getContext("2d");
+const localTransport = window.GyroLocal;
+const localMode = localTransport.enabled;
 let ws = null, mode = "race", speed = 0, throttle = 48;
 let x = 0, steer = 0, traveled = 0, camera = "Chase", braking = false;
 let last = performance.now(), keySteer = 0, keyThrottle = false, keyBrake = false;
 let tickCount = 0;
 
 function transmit(message) {
-  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+  if (localMode) {
+    localTransport.send("host", message);
+  } else if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+  }
 }
 
 function controls() {
@@ -45,6 +51,25 @@ function controlAction(action) {
   }
 }
 
+function handleControlMessage(message) {
+  if (message.type === "hello") {
+    $("connection").textContent = "Local controller connected";
+    controls();
+  } else if (message.type === "ui.action") {
+    controlAction(message);
+  } else if (message.gravityaccelerometer) {
+    const y = Number(message.gravityaccelerometer.y);
+    if (Number.isFinite(y)) steer = Math.max(-1,Math.min(1, y / 7));
+  } else if (message.type === "press") {
+    braking = true;
+  } else if (message.type === "unpress") {
+    braking = false;
+  } else if (message.type === "swipe") {
+    if (message.direction === "left") steer = -0.6;
+    if (message.direction === "right") steer = 0.6;
+  }
+}
+
 $("join").addEventListener("click", () => {
   const room = $("room").value.trim();
   if (!room) { $("connection").textContent = "Enter room code"; return; }
@@ -63,20 +88,41 @@ $("join").addEventListener("click", () => {
     if (message.type === "connected" && message.role === "host") {
       $("connection").textContent = "Host connected";
       controls();
-    } else if (message.type === "ui.action") {
-      controlAction(message);
-    } else if (message.gravityaccelerometer) {
-      const y = Number(message.gravityaccelerometer.y);
-      if (Number.isFinite(y)) steer = Math.max(-1,Math.min(1, y/7));
-    } else if (message.type === "press") {
-      braking = true;
-    } else if (message.type === "unpress") {
-      braking = false;
+    } else {
+      handleControlMessage(message);
     }
   });
   ws.addEventListener("close", () => $("connection").textContent = "Host disconnected");
   ws.addEventListener("error", () => $("connection").textContent = "Cannot connect — check room");
 });
+
+if (localMode) {
+  $("room").closest("label").hidden = true;
+  $("join").hidden = true;
+  if (!localTransport.available) {
+    $("connection").textContent = "BroadcastChannel unsupported";
+  } else {
+    $("connection").textContent = "Local mode · waiting for controller";
+    localTransport.listen((from, message) => {
+      if (from === "controller") handleControlMessage(message);
+    });
+    controls();
+    localTransport.send("host", {type: "hello"});
+    window.addEventListener("pageshow", () => {
+      controls();
+      localTransport.send("host", {type: "hello"});
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        controls();
+        localTransport.send("host", {type: "hello"});
+      }
+    });
+    window.addEventListener("pagehide", () => {
+      localTransport.send("host", {type: "bye"});
+    });
+  }
+}
 
 document.addEventListener("keydown", event => {
   if (event.target.tagName === "INPUT") return;
