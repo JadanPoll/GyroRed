@@ -130,7 +130,7 @@ def main():
     print(f"Room code: {token}", flush=True)
     print(f"Desktop receiver: python gyro_red.py --ws-url "
           f"'ws://127.0.0.1:{args.port}/ws?role=receiver&room={token}'", flush=True)
-    print(f"Interactive UIlet demo: python demo_host.py --room '{token}'", flush=True)
+    print(f"Interactive UIlet host: http://localhost:{args.port}/demo", flush=True)
     print("iPhone/iPad sensors require an HTTPS/WSS reverse proxy or tunnel.", flush=True)
     web.run_app(make_app(token), host=args.host, port=args.port)
 
