@@ -116,6 +116,10 @@ def make_app(room):
     app.router.add_get("/", lambda request: web.FileResponse(ROOT / "index.html"))
     app.router.add_get("/demo", lambda request: web.FileResponse(ROOT / "demo.html"))
     app.router.add_static("/static/", ROOT, show_index=False)
+    # These root-relative resources also let standalone pages share the
+    # same markup as python3 -m http.server -d client.
+    for name in ("style.css", "app.js", "demo.js", "local.js"):
+        app.router.add_get("/" + name, lambda request, filename=name: web.FileResponse(ROOT / filename))
     return app
 
 
