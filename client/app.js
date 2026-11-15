@@ -16,6 +16,7 @@ const defaultScheme = location.protocol === "https:" ? "wss:" : "ws:";
 relayInput.value = defaultScheme + "//" + location.host + "/ws";
 const localTransport = window.GyroLocal;
 const localMode = localTransport.enabled;
+let localGameReady = false;
 
 let socket = null;
 let counter = 0;
@@ -232,7 +233,7 @@ connectButton.addEventListener("click", () => {
     // Direct click handler: Safari requires user activation to ask for sensors.
     requestSensors().then(() => {
       startSensors();
-      setStatus("Local · motion enabled", true);
+      setStatus(localGameReady ? "Local · game connected · motion on" : "Looking for game · motion on", localGameReady);
     }).catch(error => {
       status.textContent = "Touch active · " + error.message;
     });
@@ -442,6 +443,19 @@ function renderUI(regions) {
 }
 
 
+// The instant-play layout emphasizes game-supplied actions. Legacy buttons
+// remain one tap away for the old Python keyboard receiver.
+if (localMode && new URLSearchParams(location.search).get("compact") === "1") {
+  document.body.classList.add("compact");
+  const legacy = document.querySelector(".controls");
+  const details = document.createElement("details");
+  details.className = "legacy-controls";
+  const summary = document.createElement("summary");
+  summary.textContent = "Original A / N / R and Space controls";
+  legacy.replaceWith(details);
+  details.append(summary, legacy);
+}
+
 // No room, server, or pairing UI in same-device Safari mode.
 if (localMode) {
   hideDialog();
@@ -449,18 +463,20 @@ if (localMode) {
     setStatus("BroadcastChannel is not supported in this browser");
     connectButton.disabled = true;
   } else {
-    setStatus("Local · looking for game", true);
+    setStatus("Looking for game", false);
     localTransport.listen((from, message) => {
       if (from !== "host") return;
       if (message.type === "ui.set") {
+        localGameReady = true;
         renderUI(message.regions);
-        setStatus("Local · game connected", true);
+        setStatus(motionGranted ? "Game connected · motion on" : "Game connected · touch ready", true);
       } else if (message.type === "hello") {
         localTransport.send("controller", {type: "hello"});
       } else if (message.type === "bye") {
         releaseSpace();
+        localGameReady = false;
         clearUI();
-        setStatus("Local · looking for game", true);
+        setStatus("Game disconnected · looking for game", false);
       }
     });
     const announce = () => localTransport.send("controller", {type: "hello"});
