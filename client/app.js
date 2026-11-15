@@ -11,7 +11,6 @@ const connectButton = $("connectButton");
 const hold = $("hold");
 const canvas = $("gyroCanvas");
 const context = canvas.getContext("2d");
-const profileButtons = [...document.querySelectorAll("[data-profile]")];
 const defaultScheme = location.protocol === "https:" ? "wss:" : "ws:";
 relayInput.value = defaultScheme + "//" + location.host + "/ws";
 const localTransport = window.GyroLocal;
@@ -28,7 +27,6 @@ let dragging = null;
 let holding = false;
 let closing = false;
 let connected = false;
-let profile = "Nathan A";
 let motionGranted = false;
 
 function setStatus(message, active = false) {
@@ -37,7 +35,7 @@ function setStatus(message, active = false) {
   connected = active;
   connectButton.textContent = localMode
     ? (motionGranted ? "Motion enabled" : "Enable motion")
-    : (active ? "Disconnect Phone" : "Connect Phone");
+    : (active ? "Disconnect" : "Connect to computer");
 }
 
 function send(payload) {
@@ -148,7 +146,7 @@ function connect(event) {
   event.preventDefault();
   errorLabel.textContent = "";
   const room = roomInput.value.trim();
-  if (!room) { errorLabel.textContent = "Enter the desktop room code."; return; }
+  if (!room) { errorLabel.textContent = "The connection code is printed by python relay.py on your computer."; return; }
   let relay;
   try {
     relay = new URL(relayInput.value.trim());
@@ -243,13 +241,6 @@ connectButton.addEventListener("click", () => {
 });
 $("cancel").addEventListener("click", hideDialog);
 $("connectForm").addEventListener("submit", connect);
-profileButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    profile = button.dataset.profile;
-    profileButtons.forEach((b) => b.classList.toggle("selected", b === button));
-  });
-});
-profileButtons[0].classList.add("selected");
 
 document.querySelectorAll("[data-quadrant]").forEach((button) => {
   button.addEventListener("click", () => send({
