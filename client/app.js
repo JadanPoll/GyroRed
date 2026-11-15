@@ -220,7 +220,7 @@ function connect(event) {
 
 connectButton.addEventListener("click", () => {
   if (localMode) {
-    if (!localTransport.available) return;
+    if (!localTransport.available || !localTransport.active) return;
     if (motionGranted) {
       releaseSpace();
       stopSensors();
@@ -457,6 +457,7 @@ if (localMode) {
     setStatus("Looking for game", false);
     localTransport.listen((from, message) => {
       if (from !== "host") return;
+      if (!localTransport.active) return;
       if (message.type === "ui.set") {
         localGameReady = true;
         renderUI(message.regions);
@@ -473,7 +474,19 @@ if (localMode) {
       }
     });
     const announce = () => localTransport.send("controller", {type: "hello"});
-    announce();
+    localTransport.onRoleChange(active => {
+      if (!active) {
+        holding = false;
+        stopSensors();
+        localGameReady = false;
+        clearUI();
+        setStatus("Controller paused · another tab is active", false);
+      } else {
+        setStatus("Looking for game", false);
+        if (motionGranted) startSensors();
+        announce();
+      }
+    });
     window.addEventListener("pageshow", announce);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) announce();
