@@ -7,42 +7,131 @@
 <title>GyroRed — Instant Play</title>
 <style>
   :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;color:#e4f7e4;background:#08110b}
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100svh;display:flex;flex-direction:column}
-  header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #25402b}
+  *{box-sizing:border-box} body{margin:0;min-height:100svh;display:flex;flex-direction:column}
+  header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #25402b}
   h1{font-size:17px;letter-spacing:.1em;margin:0}
   header p{font-size:12px;color:#a2b9a4;margin:3px 0 0}
-  nav{display:flex;gap:12px;font-size:12px}
+  nav{display:flex;gap:12px;font-size:12px;align-items:center}
   a{color:#9dd99b}
+  button{cursor:pointer;background:#203d28;color:#c8f3bf;border:1px solid #487751;border-radius:7px;padding:7px 10px}
+  .statebar{padding:10px 16px;background:#102216;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .statebar strong{font-size:13px;color:#a1f49f}
+  .statebar span{font-size:12px;color:#c5d5c5}
   .workspace{flex:1;min-height:620px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:5px;padding:5px}
   .pane{border:1px solid #2b5030;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
-  .pane label{padding:6px 10px;font-size:11px;color:#9bc49e;background:#102116}
+  .pane label{padding:7px 10px;font-size:11px;color:#9bc49e;background:#102116;letter-spacing:.08em}
   iframe{border:0;width:100%;flex:1;background:#050505;min-height:570px}
-  footer{padding:7px 15px;color:#819883;font-size:11px}
-  @media(max-width:760px){.workspace{display:flex;flex-direction:column;min-height:1200px}.pane{min-height:570px;flex:1}.pane iframe{min-height:530px}}
+  details{padding:8px 16px;color:#9fb99f;font-size:12px}
+  summary{cursor:pointer} pre{font:11px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;background:#142218;color:#d6e9d4;border-radius:7px;padding:10px;max-height:180px;overflow:auto}
+  footer{padding:7px 16px;color:#93ac93;font-size:12px}
+  @media(max-width:760px){.workspace{display:flex;flex-direction:column;min-height:1180px}.pane{min-height:550px;flex:1}.pane iframe{min-height:510px}}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>GYRORED / INSTANT PLAY</h1><p>Game + controller · no server logic, pairing, or room code</p></div>
+  <div><h1>GYRORED / INSTANT PLAY</h1><p>One device, two interactive surfaces. No pairing or relay.</p></div>
   <nav>
     <a id="gameLink" href="./demo.html?local=1" target="_blank" rel="noopener">Open game</a>
     <a id="controllerLink" href="./index.html?local=1" target="_blank" rel="noopener">Open controller</a>
+    <button id="restart" type="button">Restart</button>
   </nav>
 </header>
+<section class="statebar" aria-label="Connection and activity">
+  <strong id="status" role="status" aria-live="polite">Connecting game and controller…</strong>
+  <span id="activity">Start by tapping PIT STOP on the gamepad.</span>
+</section>
 <div class="workspace">
   <section class="pane"><label>GAME — HOST</label><iframe id="game" title="GyroRed host racing game" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
-  <section class="pane"><label>GAMEPAD — MOBILE CONTROLLER</label><iframe id="controller" title="GyroRed mobile gamepad" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
+  <section class="pane"><label>GAMEPAD — HOST-DEFINED CONTROLS</label><iframe id="controller" title="GyroRed mobile gamepad" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
 </div>
-<footer>Tap PIT STOP on the controller and watch the game replace the racing interface with pit controls. For motion testing, use Open controller in its own Safari window.</footer>
+<details id="diagnostics">
+  <summary>What's happening? · Diagnostics</summary>
+  <p>Both surfaces are documents from the same browser origin. The game sends UIlets; the gamepad sends actions. No Bluetooth or WebSocket is used here.</p>
+  <pre id="log">Initializing…</pre>
+  <button id="copy" type="button">Copy details</button>
+  <span id="copyStatus"></span>
+</details>
+<footer><strong>Try it:</strong> Tap <b>PIT STOP</b> on the right, change tires or refuel, then tap <b>RETURN TO TRACK</b>. For separate windows, use Open game / Open controller.</footer>
 <script>
-  // One session per workspace prevents interference between independent demos.
-  const session = "instant-" + Math.random().toString(36).slice(2);
-  const url = file => "./" + file + "?local=1&session=" + encodeURIComponent(session);
-  document.getElementById("game").src = url("demo.html");
-  document.getElementById("controller").src = url("index.html");
-  document.getElementById("gameLink").href = url("demo.html");
-  document.getElementById("controllerLink").href = url("index.html");
+"use strict";
+const session = "instant-" + Math.random().toString(36).slice(2);
+const url = (file, compact = false) =>
+  "./" + file + "?local=1&session=" + encodeURIComponent(session) +
+  (compact ? "&compact=1" : "");
+const game = document.getElementById("game");
+const controller = document.getElementById("controller");
+const status = document.getElementById("status");
+const activity = document.getElementById("activity");
+const log = document.getElementById("log");
+const hasChannel = typeof BroadcastChannel === "function";
+const evidence = {host: false, controller: false, layouts: 0, actions: 0, lastAction: "none"};
+let channel = null;
+function update() {
+  if (!hasChannel) {
+    status.textContent = "This browser cannot use BroadcastChannel";
+  } else if (evidence.host && evidence.controller && evidence.layouts) {
+    status.textContent = "Gamepad connected · game controls received";
+  } else if (evidence.host && evidence.controller) {
+    status.textContent = "Connected · waiting for game controls";
+  } else if (evidence.host) {
+    status.textContent = "Game ready · waiting for controller";
+  } else if (evidence.controller) {
+    status.textContent = "Controller ready · waiting for game";
+  } else {
+    status.textContent = "Starting both surfaces…";
+  }
+  if (evidence.actions) {
+    activity.textContent = evidence.actions + " actions sent · last: " + evidence.lastAction;
+  }
+  log.textContent = [
+    "Status: " + status.textContent,
+    "Origin: " + location.origin,
+    "Same-device mode: " + hasChannel,
+    "Game seen: " + evidence.host,
+    "Controller seen: " + evidence.controller,
+    "UI layouts observed: " + evidence.layouts,
+    "Actions observed: " + evidence.actions,
+    "Latest action: " + evidence.lastAction,
+    "If stuck: make sure both panes loaded, then tap Restart."
+  ].join("\n");
+}
+if (hasChannel) {
+  channel = new BroadcastChannel("gyrored-local-v1:" + session);
+  channel.addEventListener("message", event => {
+    const message = event.data;
+    if (!message || message.protocol !== "gyrored-local-v1") return;
+    const payload = message.payload;
+    if (!payload || typeof payload !== "object") return;
+    if (message.from === "host") {
+      evidence.host = true;
+      if (payload.type === "ui.set") evidence.layouts++;
+    } else if (message.from === "controller") {
+      evidence.controller = true;
+      if (payload.type === "ui.action") {
+        evidence.actions++;
+        evidence.lastAction = String(payload.id).slice(0, 60) + " = " +
+          String(payload.value).slice(0, 40);
+      }
+    }
+    update();
+  });
+}
+game.src = url("demo.html");
+controller.src = url("index.html", true);
+document.getElementById("gameLink").href = url("demo.html");
+document.getElementById("controllerLink").href = url("index.html");
+document.getElementById("restart").addEventListener("click", () => location.reload());
+document.getElementById("copy").addEventListener("click", async () => {
+  const text = "GyroRed Instant Play\n" + log.textContent + "\nBrowser: " + navigator.userAgent;
+  try {
+    await navigator.clipboard.writeText(text);
+    document.getElementById("copyStatus").textContent = "Copied";
+  } catch (error) {
+    document.getElementById("copyStatus").textContent =
+      "Clipboard unavailable; select and copy the details above.";
+  }
+});
+update();
 </script>
 </body>
 </html>
