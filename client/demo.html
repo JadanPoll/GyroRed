@@ -21,12 +21,12 @@ button{padding:12px;background:#2e7b2e;border:0;border-radius:7px;color:white;cu
 <main>
 <header><div><h1>GYRORED</h1><p>Host-driven UIlets • Live road demo</p></div><b id="connection">Not connected</b></header>
 <div class="panel">
-<label>Room <input type="password" id="room" placeholder="Code printed by relay" autocomplete="off"></label>
+<label>Connection code <input type="password" id="room" placeholder="Printed by relay.py" autocomplete="off"></label>
 <button id="join">Connect host</button>
-<span class="stat" id="telemetry">Speed 0 · Gear 1 · Race</span>
+<span class="stat" id="telemetry">Speed 0 · Fuel 60% · Medium · Race</span>
 </div>
 <canvas id="road" width="800" height="440" aria-label="Interactive racing demo"></canvas>
-<p class="small">Open the relay's controller page on your phone and enter the same room code. Tilt the phone to steer. The phone's throttle, brake, pit-stop and camera controls are <strong>pushed by this game</strong>, not built into the phone.</p>
+<p class="small">The game publishes throttle, brake, and pit-stop controls to your gamepad. Entering the pit replaces those controls with tire and refueling choices. Tilt to steer where supported.</p>
 <p class="small">Desktop fallback: Left/Right to steer, Up to accelerate, Space to brake, P for pit stop. The original desktop keyboard receiver can run concurrently.</p>
 </main>
 <script src="./local.js"></script>
