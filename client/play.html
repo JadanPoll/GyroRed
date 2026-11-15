@@ -64,10 +64,12 @@ const status = document.getElementById("status");
 const activity = document.getElementById("activity");
 const log = document.getElementById("log");
 const hasChannel = typeof BroadcastChannel === "function";
-const evidence = {host: false, controller: false, layouts: 0, actions: 0, lastAction: "none"};
+const evidence = {host: false, controller: false, layouts: 0, actions: 0, lastAction: "none", lastError: ""};
 let channel = null;
 function update() {
-  if (!hasChannel) {
+  if (evidence.lastError) {
+    status.textContent = "Interface error · open Diagnostics below";
+  } else if (!hasChannel) {
     status.textContent = "This browser cannot use BroadcastChannel";
   } else if (evidence.host && evidence.controller && evidence.layouts) {
     status.textContent = "Gamepad connected · game controls received";
@@ -92,6 +94,7 @@ function update() {
     "UI layouts observed: " + evidence.layouts,
     "Actions observed: " + evidence.actions,
     "Latest action: " + evidence.lastAction,
+    "Latest error: " + (evidence.lastError || "none"),
     "If stuck: make sure both panes loaded, then tap Restart."
   ].join("\n");
 }
@@ -102,6 +105,10 @@ if (hasChannel) {
     if (!message || message.protocol !== "gyrored-local-v1") return;
     const payload = message.payload;
     if (!payload || typeof payload !== "object") return;
+    if (payload.type === "diagnostic") {
+      evidence.lastError = message.from + ": " + String(payload.error).slice(0, 500);
+      document.getElementById("diagnostics").open = true;
+    }
     if (message.from === "host") {
       evidence.host = true;
       if (payload.type === "ui.set") evidence.layouts++;
