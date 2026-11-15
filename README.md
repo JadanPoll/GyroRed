@@ -11,7 +11,7 @@ From iSH, in an existing clone:
 ```sh
 cd GyroRed
 git pull
-python3 -m http.server 8765 --bind 127.0.0.1 --directory client
+python3 serve.py
 ```
 
 If you haven't cloned the repository yet:
@@ -20,14 +20,14 @@ If you haven't cloned the repository yet:
 apk add git python3
 git clone https://github.com/JadanPoll/GyroRed.git
 cd GyroRed
-python3 -m http.server 8765 --bind 127.0.0.1 --directory client
+python3 serve.py
 ```
 
-Then open **http://127.0.0.1:8765/** in Safari.
+Then open **http://127.0.0.1:8765/** in Safari. If an old server is still running in iSH, stop it first with **Ctrl+C**, then start this one.
 
 That's it. **There is no room code or pairing step in this mode.** The page opens the racing game and controller together. Tap **PIT STOP** in the controller, change tires or fuel, and tap **RETURN TO TRACK**. The game changes the UI and responds to your choices. Touch works without sensor permission.
 
-The game and controller exchange messages over `BroadcastChannel`, a same-origin browser feature. iSH is needed only to serve the static pages when opening or refreshing. If nothing happens, open **What's happening? · Diagnostics** and use **Copy details**.
+The game and controller exchange messages over `BroadcastChannel`, a same-origin browser feature. `serve.py` uses Python's built-in HTTP server and quietly ignores ordinary Safari socket closures (such as `BrokenPipeError` from abandoned requests). iSH is needed only to serve the static pages when opening or refreshing. If nothing happens, open **What's happening? · Diagnostics** and use **Copy details**.
 
 ## Connecting to a separate computer (optional)
 
@@ -49,6 +49,7 @@ To use the classic Python/OpenGL keyboard receiver, install `requirements.txt` a
 | Component | Purpose |
 | --- | --- |
 | `client/play.html` | One-page game-and-gamepad demonstration, status and diagnostics |
+| `serve.py` | Tiny stdlib iSH server; avoids misleading Safari-disconnect tracebacks |
 | `client/index.html`, `app.js`, `style.css` | Dynamic controller UI, touch input, optional motion sensors |
 | `client/demo.html`, `demo.js` | Game host that publishes controls and consumes actions |
 | `client/local.js` | Same-device `BroadcastChannel` transport |
