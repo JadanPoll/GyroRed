@@ -4,7 +4,11 @@
 (() => {
   "use strict";
   const params = new URLSearchParams(location.search);
-  const enabled = params.get("local") === "1";
+  // Static files default to local mode; relay's / and /demo stay networked.
+  const selection = params.get("local");
+  const staticPage = location.pathname.endsWith("/index.html") ||
+                     location.pathname.endsWith("/demo.html");
+  const enabled = selection === "1" || (selection !== "0" && staticPage);
   const available = typeof BroadcastChannel === "function";
   const session = (params.get("session") || "default").slice(0, 80);
   const channel = enabled && available
