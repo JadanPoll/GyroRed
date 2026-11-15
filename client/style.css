@@ -42,3 +42,28 @@ label{display:block;color:#ccc;font-size:12px;margin:14px 0 8px}.join{display:fl
 .uilet-toggle{display:flex;align-items:center;gap:10px;margin:0;min-height:45px;color:#e5f9dd;font-size:14px}
 .uilet-toggle input{accent-color:#55b53f;width:20px;height:20px}
 .uilet-spacer{min-height:12px;flex:1}
+
+/* Instant Play: host-created controls come before legacy controls and the
+   wireframe never pushes the important actions below the first viewport. */
+.compact .stage{display:flex;flex-direction:column;min-height:100svh}
+.compact .top{order:0;padding:10px 12px;align-items:center}
+.compact .brand{font-size:14px}
+.compact .brand small{font-size:8px}
+.compact .connect{min-width:120px;padding:8px 11px;font-size:12px}
+.compact .connection p{font-size:10px;margin:4px 0}
+.compact .uilet-root{width:100%;max-width:100%;margin:3px auto;padding:0 10px}
+.compact .uilet-root[data-region=top]{order:1}
+.compact .uilet-root[data-region=actions]{order:2}
+.compact .uilet-root[data-region=bottom]{order:5}
+.compact .uilet-region{padding:8px;gap:8px}
+.compact .uilet-region-name{font-size:9px}
+.compact .uilet{flex:1 1 100px;min-width:95px}
+.compact .uilet button{padding:9px;min-height:43px}
+.compact .canvas-wrap{order:3;height:110px;width:min(95%,390px);margin:4px auto 16px}
+.compact .readout{font-size:10px}
+.compact .legacy-controls{order:4;margin:2px 10px;padding:9px 10px;border:1px solid #2c4934;border-radius:8px;color:#9bc39a;font-size:12px}
+.compact .legacy-controls summary{cursor:pointer}
+.compact .controls{margin:12px auto 0;width:100%;padding:0 4px}
+.compact .tap{min-height:45px;font-size:16px}
+.compact .hold{margin-top:8px;min-height:48px;font-size:14px}
+.compact footer{order:6;padding:12px}
