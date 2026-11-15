@@ -14,6 +14,8 @@ const context = canvas.getContext("2d");
 const profileButtons = [...document.querySelectorAll("[data-profile]")];
 const defaultScheme = location.protocol === "https:" ? "wss:" : "ws:";
 relayInput.value = defaultScheme + "//" + location.host + "/ws";
+const localTransport = window.GyroLocal;
+const localMode = localTransport.enabled;
 
 let socket = null;
 let counter = 0;
@@ -32,12 +34,19 @@ function setStatus(message, active = false) {
   status.textContent = message;
   status.classList.toggle("online", active);
   connected = active;
-  connectButton.textContent = active ? "Disconnect Phone" : "Connect Phone";
+  connectButton.textContent = localMode
+    ? (motionGranted ? "Motion enabled" : "Enable motion")
+    : (active ? "Disconnect Phone" : "Connect Phone");
 }
 
 function send(payload) {
-  if (!socket || socket.readyState !== WebSocket.OPEN || !connected) return false;
-  socket.send(JSON.stringify(payload));
+  if (!connected) return false;
+  if (localMode) {
+    if (!localTransport.send("controller", payload)) return false;
+  } else {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify(payload));
+  }
   $("eventCount").textContent = String(++counter);
   return true;
 }
@@ -210,7 +219,27 @@ function connect(event) {
   });
 }
 
-connectButton.addEventListener("click", () => connected ? disconnect() : showDialog());
+connectButton.addEventListener("click", () => {
+  if (localMode) {
+    if (!localTransport.available) return;
+    if (motionGranted) {
+      releaseSpace();
+      stopSensors();
+      motionGranted = false;
+      setStatus("Local · touch controls ready", true);
+      return;
+    }
+    // Direct click handler: Safari requires user activation to ask for sensors.
+    requestSensors().then(() => {
+      startSensors();
+      setStatus("Local · motion enabled", true);
+    }).catch(error => {
+      status.textContent = "Touch active · " + error.message;
+    });
+    return;
+  }
+  connected ? disconnect() : showDialog();
+});
 $("cancel").addEventListener("click", hideDialog);
 $("connectForm").addEventListener("submit", connect);
 profileButtons.forEach((button) => {
@@ -409,5 +438,37 @@ function renderUI(regions) {
       region.append(item);
     }
     uiletRoots[regionName].append(region);
+  }
+}
+
+
+// No room, server, or pairing UI in same-device Safari mode.
+if (localMode) {
+  hideDialog();
+  if (!localTransport.available) {
+    setStatus("BroadcastChannel is not supported in this browser");
+    connectButton.disabled = true;
+  } else {
+    setStatus("Local · looking for game", true);
+    localTransport.listen((from, message) => {
+      if (from !== "host") return;
+      if (message.type === "ui.set") {
+        renderUI(message.regions);
+        setStatus("Local · game connected", true);
+      } else if (message.type === "hello") {
+        localTransport.send("controller", {type: "hello"});
+      } else if (message.type === "bye") {
+        releaseSpace();
+        clearUI();
+        setStatus("Local · looking for game", true);
+      }
+    });
+    const announce = () => localTransport.send("controller", {type: "hello"});
+    announce();
+    window.addEventListener("pageshow", announce);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) announce();
+      else releaseSpace();
+    });
   }
 }
