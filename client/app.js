@@ -155,7 +155,11 @@ function connect(event) {
 
   // Ask permission in this click-triggered handler BEFORE awaiting any
   // network handshake so iOS retains the user-gesture permission context.
-  const permission = requestSensors();
+  const permission = requestSensors().catch((error) => {
+    motionGranted = false;
+    console.warn("Motion unavailable; touch controls still work:", error.message);
+    return false;
+  });
   setStatus("Requesting motion permission…");
   permission.then(() => {
     disconnect();
@@ -179,7 +183,7 @@ function connect(event) {
         const data = JSON.parse(message.data);
         if (data.type === "ui.set") renderUI(data.regions);
         if (data.type === "connected" && data.role === "controller") {
-          setStatus("WebSocket connected", true);
+          setStatus(motionGranted ? "WebSocket connected" : "Connected · touch only", true);
           hideDialog();
           startSensors();
         }
