@@ -40,6 +40,9 @@
   <strong id="status" role="status" aria-live="polite">Connecting game and controller…</strong>
   <span id="activity">Start by tapping PIT STOP on the gamepad.</span>
 </section>
+<p id="multiDemoWarning" role="alert" hidden style="margin:0;padding:9px 16px;background:#3b2b13;color:#ffe6b3;font-size:13px">
+  Another GyroRed demo is open in this browser. The demos use separate game sessions; close the copies you aren't using.
+</p>
 <div class="workspace">
   <section class="pane"><label>GAME — HOST</label><iframe id="game" title="GyroRed host racing game" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
   <section class="pane"><label>GAMEPAD — HOST-DEFINED CONTROLS</label><iframe id="controller" title="GyroRed mobile gamepad" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
@@ -66,6 +69,39 @@ const log = document.getElementById("log");
 const hasChannel = typeof BroadcastChannel === "function";
 const evidence = {host: false, controller: false, layouts: 0, actions: 0, lastAction: "none", lastError: ""};
 let channel = null;
+const otherDemos = new Map();
+const workspaceChannel = hasChannel
+  ? new BroadcastChannel("gyrored-open-demos-v1") : null;
+if (workspaceChannel) {
+  function reportOpen() {
+    workspaceChannel.postMessage({type:"open", id:session});
+  }
+  function updateOtherDemos() {
+    const now = Date.now();
+    for (const [id, seen] of otherDemos) {
+      if (now - seen > 9000) otherDemos.delete(id);
+    }
+    document.getElementById("multiDemoWarning").hidden = !otherDemos.size;
+  }
+  workspaceChannel.addEventListener("message", event => {
+    const data = event.data;
+    if (!data || data.id === session || typeof data.id !== "string") return;
+    if (data.type === "bye") otherDemos.delete(data.id);
+    if (data.type === "open") {
+      const firstSeen = !otherDemos.has(data.id);
+      otherDemos.set(data.id, Date.now());
+      if (firstSeen) reportOpen();
+    }
+    updateOtherDemos();
+  });
+  reportOpen();
+  setInterval(() => {
+    reportOpen();
+    updateOtherDemos();
+  }, 3000);
+  window.addEventListener("pagehide", () =>
+    workspaceChannel.postMessage({type:"bye", id:session}));
+}
 function update() {
   if (evidence.lastError) {
     status.textContent = "Interface error · open Diagnostics below";
@@ -95,6 +131,7 @@ function update() {
     "Actions observed: " + evidence.actions,
     "Latest action: " + evidence.lastAction,
     "Latest error: " + (evidence.lastError || "none"),
+    "Other demo sessions: " + otherDemos.size,
     "If stuck: make sure both panes loaded, then tap Restart."
   ].join("\n");
 }
