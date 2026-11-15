@@ -300,17 +300,23 @@ function draw() {
 frameId = requestAnimationFrame(draw);
 
 /* Host-defined UIlets: declarative components, never host-supplied HTML/scripts. */
-const uiletRoot = document.createElement("section");
-uiletRoot.id = "uiletRoot";
-uiletRoot.className = "uilet-root";
-uiletRoot.setAttribute("aria-label", "Host controls");
-document.querySelector(".canvas-wrap").insertAdjacentElement("afterend", uiletRoot);
+const uiletRoots = {};
+for (const name of ["top", "actions", "bottom"]) {
+  const root = document.createElement("section");
+  root.className = "uilet-root";
+  root.setAttribute("aria-label", "Host controls: " + name);
+  root.dataset.region = name;
+  if (name === "top") document.querySelector(".canvas-wrap").insertAdjacentElement("beforebegin", root);
+  if (name === "actions") document.querySelector(".controls").insertAdjacentElement("beforebegin", root);
+  if (name === "bottom") document.querySelector(".controls").insertAdjacentElement("afterend", root);
+  uiletRoots[name] = root;
+}
 
 function uiAction(id, value, phase = "change") {
   send({type: "ui.action", id, value, phase});
 }
 function clearUI() {
-  uiletRoot.replaceChildren();
+  Object.values(uiletRoots).forEach(root => root.replaceChildren());
 }
 function uiElement(tag, className, labelText) {
   const el = document.createElement(tag);
@@ -402,6 +408,6 @@ function renderUI(regions) {
       }
       region.append(item);
     }
-    uiletRoot.append(region);
+    uiletRoots[regionName].append(region);
   }
 }
