@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08110b">
+<title>GyroRed — Instant Play</title>
+<style>
+  :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;color:#e4f7e4;background:#08110b}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100svh;display:flex;flex-direction:column}
+  header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #25402b}
+  h1{font-size:17px;letter-spacing:.1em;margin:0}
+  header p{font-size:12px;color:#a2b9a4;margin:3px 0 0}
+  nav{display:flex;gap:12px;font-size:12px}
+  a{color:#9dd99b}
+  .workspace{flex:1;min-height:620px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:5px;padding:5px}
+  .pane{border:1px solid #2b5030;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .pane label{padding:6px 10px;font-size:11px;color:#9bc49e;background:#102116}
+  iframe{border:0;width:100%;flex:1;background:#050505;min-height:570px}
+  footer{padding:7px 15px;color:#819883;font-size:11px}
+  @media(max-width:760px){.workspace{display:flex;flex-direction:column;min-height:1200px}.pane{min-height:570px;flex:1}.pane iframe{min-height:530px}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>GYRORED / INSTANT PLAY</h1><p>Game + controller · no server logic, pairing, or room code</p></div>
+  <nav>
+    <a id="gameLink" href="./demo.html?local=1" target="_blank" rel="noopener">Open game</a>
+    <a id="controllerLink" href="./index.html?local=1" target="_blank" rel="noopener">Open controller</a>
+  </nav>
+</header>
+<div class="workspace">
+  <section class="pane"><label>GAME — HOST</label><iframe id="game" title="GyroRed host racing game" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
+  <section class="pane"><label>GAMEPAD — MOBILE CONTROLLER</label><iframe id="controller" title="GyroRed mobile gamepad" allow="accelerometer; gyroscope" loading="eager"></iframe></section>
+</div>
+<footer>Tap PIT STOP on the controller and watch the game replace the racing interface with pit controls. For motion testing, use Open controller in its own Safari window.</footer>
+<script>
+  // One session per workspace prevents interference between independent demos.
+  const session = "instant-" + Math.random().toString(36).slice(2);
+  const url = file => "./" + file + "?local=1&session=" + encodeURIComponent(session);
+  document.getElementById("game").src = url("demo.html");
+  document.getElementById("controller").src = url("index.html");
+  document.getElementById("gameLink").href = url("demo.html");
+  document.getElementById("controllerLink").href = url("index.html");
+</script>
+</body>
+</html>
