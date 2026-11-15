@@ -470,6 +470,8 @@ if (localMode) {
         localGameReady = true;
         renderUI(message.regions);
         setStatus(motionGranted ? "Game connected · motion on" : "Game connected · touch ready", true);
+      } else if (message.type === "ui.clear") {
+        clearUI();
       } else if (message.type === "hello") {
         localTransport.send("controller", {type: "hello"});
       } else if (message.type === "bye") {
