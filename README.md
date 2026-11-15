@@ -4,7 +4,31 @@
 
 GyroRed is a revived 2024 experiment. The original browser controller and Python OpenGL/keyboard adapter are preserved in spirit, with a new bidirectional WebSocket protocol and **UIlets**: the running game can push interactive controls to the mobile device without shipping client code.
 
-## Try the complete demo
+## Zero-setup local demo (iPad Safari + iSH)
+
+For the **host-driven UIlet demonstration**, neither `aiohttp` nor a WebSocket server is needed. The two pages communicate directly with the browser's `BroadcastChannel` API. Use iSH only as a tiny static-file server:
+
+```sh
+apk add git python3
+git clone https://github.com/JadanPoll/GyroRed.git
+cd GyroRed
+python3 -m http.server 8765 --bind 127.0.0.1 --directory client
+```
+
+Open **`http://127.0.0.1:8765/play.html`** in Safari. The page embeds the desktop racing game and mobile controller together. They link automatically (no room code, pairing dialog, or extra Python packages). Tap `PIT STOP` on the controller to see the UIlets switch.
+
+To use **two Safari windows in Split View**, open these two URLs instead:
+
+- `http://127.0.0.1:8765/demo.html` — host game
+- `http://127.0.0.1:8765/index.html` — controller
+
+Both must use the **same scheme, hostname, and port**; `127.0.0.1` and `localhost` are different browser origins. Static `index.html` and `demo.html` automatically enable the local transport. You can optionally append matching `?session=mytest` parameters to isolate more than one gamepad pair.
+
+This mode works entirely within one browser on one device; **BroadcastChannel does not connect different phones, computers, or separate browser origins**. An HTTP server is only needed to serve the static files initially. Once both documents are loaded they communicate without it, though reloading will require the server again. If iPadOS suspends iSH while Safari is foregrounded, reopen iSH before refreshing. For separate devices use the WebSocket relay below.
+
+Motion sensors are optional. Touch UIlets are the principal test; click **Enable motion** to request permission where available. Sensor permission within a split-screen iframe can behave differently from a standalone Safari page.
+
+## Networked demo (phone and desktop)
 
 Requires Python 3.10+.
 
@@ -101,3 +125,14 @@ The source was an eight-page email PDF containing Python code sent by **Bryan Ch
 This is a compact proof of capability, not a finished commercial gamepad SDK: arbitrary games require an integration with the host protocol, browser motion axes differ by device orientation, and low-latency native HID emulation is outside this browser-based implementation. Live phone hardware behavior has not been verified here.
 
 **Safety:** Desktop keyboard emulation sends keystrokes to whichever desktop application has focus. Test with a harmless window. The relay uses a room secret, but has no rate limiting or user accounts; do not expose it directly on untrusted networks without appropriate proxy restrictions.
+
+## Transport choices: local, network, and Bluetooth
+
+| Transport | Best use | Extra requirements |
+| --- | --- | --- |
+| BroadcastChannel | Two same-origin Safari windows or iframes on one iPad | None after static assets load |
+| WebSocket relay | Phone controlling a separate computer or networked game | Running relay; HTTPS/WSS for mobile motion |
+| Bluetooth LE (future native adapter) | Offline connection to a separate Bluetooth-equipped device | Native iPad app with Core Bluetooth; Safari has no native Web Bluetooth support |
+
+A **Bluetooth HID** mode could provide compatibility with computers and devices expecting a physical controller, but the HID protocol by itself does **not** carry arbitrary host-pushed UIlets. Rich UIlets over BLE would need a separate custom GATT protocol and an integrating host. Therefore BLE is a possible future transport adapter, **not** a dependency of the archived web demo.
+
