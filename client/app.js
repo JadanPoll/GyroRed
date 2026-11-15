@@ -57,6 +57,7 @@ function disconnect() {
     socket = null;
   }
   setStatus("Disconnected");
+  clearUI();
 }
 
 function showDialog() {
@@ -176,6 +177,7 @@ function connect(event) {
     socket.addEventListener("message", (message) => {
       try {
         const data = JSON.parse(message.data);
+        if (data.type === "ui.set") renderUI(data.regions);
         if (data.type === "connected" && data.role === "controller") {
           setStatus("WebSocket connected", true);
           hideDialog();
@@ -187,6 +189,7 @@ function connect(event) {
       releaseSpace();
       stopSensors();
       setStatus("Disconnected");
+      clearUI();
       if (!closing) {
         errorLabel.textContent = event.code === 1006
           ? "Connection failed. Check relay address, room code, and server."
@@ -291,3 +294,110 @@ function draw() {
   frameId = requestAnimationFrame(draw);
 }
 frameId = requestAnimationFrame(draw);
+
+/* Host-defined UIlets: declarative components, never host-supplied HTML/scripts. */
+const uiletRoot = document.createElement("section");
+uiletRoot.id = "uiletRoot";
+uiletRoot.className = "uilet-root";
+uiletRoot.setAttribute("aria-label", "Host controls");
+document.querySelector(".canvas-wrap").insertAdjacentElement("afterend", uiletRoot);
+
+function uiAction(id, value, phase = "change") {
+  send({type: "ui.action", id, value, phase});
+}
+function clearUI() {
+  uiletRoot.replaceChildren();
+}
+function uiElement(tag, className, labelText) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (labelText !== undefined) el.textContent = String(labelText).slice(0, 120);
+  return el;
+}
+function renderUI(regions) {
+  clearUI();
+  if (!regions || typeof regions !== "object") return;
+  for (const regionName of ["top", "actions", "bottom"]) {
+    const items = regions[regionName];
+    if (!Array.isArray(items) || !items.length) continue;
+    const region = uiElement("div", "uilet-region");
+    region.dataset.region = regionName;
+    const name = uiElement("div", "uilet-region-name", regionName);
+    region.append(name);
+    for (const descriptor of items.slice(0, 40)) {
+      if (!descriptor || typeof descriptor !== "object" ||
+          !/^[a-zA-Z0-9_.:-]{1,64}$/.test(descriptor.id || "")) continue;
+      const id = descriptor.id;
+      const kind = descriptor.kind;
+      const label = String(descriptor.label || id).slice(0, 80);
+      const item = uiElement("div", "uilet");
+      if (kind === "text") {
+        item.append(uiElement("p", "uilet-text", descriptor.text || label));
+      } else if (kind === "spacer") {
+        item.classList.add("uilet-spacer");
+      } else if (kind === "button") {
+        const button = uiElement("button", "uilet-button", label);
+        button.type = "button";
+        button.disabled = descriptor.disabled === true;
+        button.addEventListener("click", () => uiAction(id, true, "press"));
+        item.append(button);
+      } else if (kind === "toggle") {
+        const row = uiElement("label", "uilet-toggle");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = descriptor.value === true;
+        input.disabled = descriptor.disabled === true;
+        input.addEventListener("change", () => uiAction(id, input.checked));
+        row.append(input, document.createTextNode(label));
+        item.append(row);
+      } else if (kind === "slider" || kind === "meter") {
+        const title = uiElement("label", "uilet-label", label);
+        const number = uiElement("output", "uilet-value");
+        const input = document.createElement("input");
+        const min = Number.isFinite(descriptor.min) ? descriptor.min : 0;
+        const max = Number.isFinite(descriptor.max) && descriptor.max > min ? descriptor.max : 100;
+        const value = Number.isFinite(descriptor.value) ? descriptor.value : min;
+        input.min = String(min);
+        input.max = String(max);
+        input.value = String(Math.max(min, Math.min(max, value)));
+        number.textContent = input.value + (descriptor.unit || "");
+        if (kind === "slider") {
+          input.type = "range";
+          input.step = String(Number.isFinite(descriptor.step) && descriptor.step > 0 ? descriptor.step : 1);
+          input.disabled = descriptor.disabled === true;
+          let last = 0;
+          input.addEventListener("input", () => {
+            number.textContent = input.value + (descriptor.unit || "");
+            const now = performance.now();
+            if (now - last > 45) {
+              last = now;
+              uiAction(id, Number(input.value));
+            }
+          });
+          input.addEventListener("change", () => uiAction(id, Number(input.value)));
+        } else {
+          input.type = "range";
+          input.disabled = true;
+        }
+        item.append(title, number, input);
+      } else if (kind === "select") {
+        const title = uiElement("label", "uilet-label", label);
+        const select = uiElement("select", "uilet-select");
+        for (const option of (Array.isArray(descriptor.options) ? descriptor.options.slice(0, 24) : [])) {
+          if (typeof option !== "string" || option.length > 80) continue;
+          const element = uiElement("option", "", option);
+          element.value = option;
+          select.append(element);
+        }
+        select.value = descriptor.value;
+        select.disabled = descriptor.disabled === true;
+        select.addEventListener("change", () => uiAction(id, select.value));
+        item.append(title, select);
+      } else {
+        continue;
+      }
+      region.append(item);
+    }
+    uiletRoot.append(region);
+  }
+}
