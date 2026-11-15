@@ -62,6 +62,12 @@ function controlAction(action) {
 
 function handleControlMessage(message) {
   if (message.type === "hello") {
+    // A newly elected controller starts with no held inputs. Do not carry
+    // braking or steering from a controller tab that was closed or replaced.
+    braking = false;
+    motionSteer = 0;
+    gestureSteer = 0;
+    swipeSteerUntil = 0;
     $("connection").textContent = "Local controller connected";
     controls();
   } else if (message.type === "ui.action") {
