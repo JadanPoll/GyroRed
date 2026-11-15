@@ -4,7 +4,8 @@ const canvas = $("road"), ctx = canvas.getContext("2d");
 const localTransport = window.GyroLocal;
 const localMode = localTransport.enabled;
 let ws = null, mode = "race", speed = 0, throttle = 48;
-let x = 0, motionSteer = 0, gestureSteer = 0, traveled = 0, camera = "Chase", braking = false;
+let x = 0, motionSteer = 0, gestureSteer = 0, traveled = 0, braking = false;
+let fuel = 60, tire = "Medium";
 let last = performance.now(), keySteer = 0, keyThrottle = false, keyBrake = false;
 let swipeSteerUntil = 0;
 
@@ -19,8 +20,7 @@ function transmit(message) {
 function controls() {
   const regions = mode === "race" ? {
     top: [
-      {id:"speed",kind:"text",text:"ROAD DEMO · Tilt to steer · " + camera},
-      {id:"camera",kind:"select",label:"View",value:camera,options:["Chase","Cockpit","Top"]}
+      {id:"road-title",kind:"text",text:"ROAD DEMO · Tilt to steer · tap PIT STOP to change the controls"}
     ],
     actions: [
       {id:"throttle",kind:"slider",label:"Throttle",value:throttle,min:0,max:100,step:5,unit:"%"},
@@ -30,8 +30,8 @@ function controls() {
   } : {
     top: [{id:"pit-title",kind:"text",text:"PIT STOP · Parked and waiting"}],
     actions: [
-      {id:"tires",kind:"select",label:"Tire compound",value:"Medium",options:["Soft","Medium","Hard"]},
-      {id:"refuel",kind:"slider",label:"Refuel",value:50,min:0,max:100,step:10,unit:"%"},
+      {id:"tires",kind:"select",label:"Tire compound",value:tire,options:["Soft","Medium","Hard"]},
+      {id:"refuel",kind:"slider",label:"Fuel",value:Math.round(fuel),min:0,max:100,step:1,unit:"%"},
       {id:"resume",kind:"button",label:"RETURN TO TRACK"}
     ]
   };
@@ -43,11 +43,20 @@ function controlAction(action) {
   switch (action.id) {
     case "throttle": throttle = Math.max(0,Math.min(100,Number(action.value)||0)); break;
     case "brake": braking = action.value === true; break;
-    case "camera": camera = ["Chase","Cockpit","Top"].includes(action.value) ? action.value : camera; break;
     case "pit": mode = "pit"; speed = 0; controls(); break;
     case "resume": mode = "race"; controls(); break;
-    case "tires": $("connection").textContent = "Fitted " + action.value + " tires"; break;
-    case "refuel": $("connection").textContent = "Refuel " + action.value + "%"; break;
+    case "tires":
+      if (mode === "pit" && ["Soft","Medium","Hard"].includes(action.value)) {
+        tire = action.value;
+        $("connection").textContent = "Fitted " + tire + " tires";
+      }
+      break;
+    case "refuel":
+      if (mode === "pit") {
+        fuel = Math.max(0, Math.min(100, Number(action.value) || 0));
+        $("connection").textContent = "Fuel set to " + Math.round(fuel) + "%";
+      }
+      break;
   }
 }
 
@@ -149,13 +158,15 @@ function steering() {
 function draw(now) {
   const dt = Math.min((now - last)/1000, .05);
   last = now;
-  const activeThrottle = keyThrottle ? 100 : throttle;
+  const activeThrottle = fuel <= 0 ? 0 : (keyThrottle ? 100 : throttle);
   const activeBrake = braking || keyBrake;
   if (mode === "race") {
     speed += ((activeBrake ? -220 : activeThrottle * 1.8) - speed * .72) * dt;
     speed = Math.max(0,Math.min(220,speed));
     const turning = steering();
-    x = Math.max(-1.38,Math.min(1.38,x + turning * dt * (0.3 + speed/130)));
+    const tireGrip = tire === "Soft" ? 1.2 : tire === "Hard" ? 0.82 : 1;
+    x = Math.max(-1.38,Math.min(1.38,x + turning * dt * tireGrip * (0.3 + speed/130)));
+    fuel = Math.max(0, fuel - activeThrottle * dt * 0.0012);
     traveled += speed*dt / 3.6;
   } else speed = 0;
   const w=canvas.width,h=canvas.height;
@@ -178,10 +189,11 @@ function draw(now) {
   ctx.font="16px ui-monospace,monospace";
   ctx.fillText(Math.round(speed)+" km/h",22,64);
   ctx.fillText("Steering "+Math.round(steering()*100)+"%",22,88);
+  ctx.fillText("Fuel "+Math.round(fuel)+"% · "+tire+" tires",22,112);
   if(mode==="pit"){ctx.fillStyle="#051009d9";ctx.fillRect(190,135,420,150);
     ctx.fillStyle="#b3f8ac";ctx.font="bold 30px system-ui";ctx.fillText("PIT STOP",316,196);
     ctx.font="16px system-ui";ctx.fillText("Use the phone's new pit UIlets",270,233)}
-  $("telemetry").textContent="Speed "+Math.round(speed)+" · Gear "+Math.max(1,Math.ceil(speed/37))+" · "+mode;
+  $("telemetry").textContent="Speed "+Math.round(speed)+" · Fuel "+Math.round(fuel)+"% · "+tire+" · "+mode;
   requestAnimationFrame(draw);
 }
 requestAnimationFrame(draw);
