@@ -29,6 +29,13 @@ That's it. **There is no room code or pairing step in this mode.** The page open
 
 The game and controller exchange messages over `BroadcastChannel`, a same-origin browser feature. `serve.py` uses Python's built-in HTTP server and quietly ignores ordinary Safari socket closures (such as `BrokenPipeError` from abandoned requests). iSH is needed only to serve the static pages when opening or refreshing. If nothing happens, open **What's happening? · Diagnostics** and use **Copy details**.
 
+### If you have more than one GyroRed tab open
+
+- Two controllers for **the same game session** are detected. Only one can send input; the other shows **“Another controller tab is already in use”** and offers **Use this tab instead**.
+- Two complete Instant Play pages are separate game sessions. Both may run, but the pages warn so you can close the extra copy.
+- If Safari closes or suspends a controller, the other copy can take over after the inactive one stops responding. The controller automatically retries finding its game rather than leaving you with a blank interface.
+- If the screen behaves unexpectedly, keep just one Instant Play page and use its **Restart** button. See **What's happening? · Diagnostics** for copyable details.
+
 ## Connecting to a separate computer (optional)
 
 This is a *different* workflow, and the **only one that requires a connection code**.
