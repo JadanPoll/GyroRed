@@ -4,7 +4,7 @@ const canvas = $("road"), ctx = canvas.getContext("2d");
 const localTransport = window.GyroLocal;
 const localMode = localTransport.enabled;
 let ws = null, mode = "race", speed = 0, throttle = 48;
-let x = 0, steer = 0, traveled = 0, camera = "Chase", braking = false;
+let x = 0, motionSteer = 0, gestureSteer = 0, traveled = 0, camera = "Chase", braking = false;
 let last = performance.now(), keySteer = 0, keyThrottle = false, keyBrake = false;
 let swipeSteerUntil = 0;
 
@@ -59,14 +59,14 @@ function handleControlMessage(message) {
     controlAction(message);
   } else if (message.gravityaccelerometer) {
     const y = Number(message.gravityaccelerometer.y);
-    if (Number.isFinite(y)) steer = Math.max(-1,Math.min(1, y / 7));
+    if (Number.isFinite(y)) motionSteer = Math.max(-1,Math.min(1, y / 7));
   } else if (message.type === "press") {
     braking = true;
   } else if (message.type === "unpress") {
     braking = false;
   } else if (message.type === "swipe") {
     if (message.direction === "left" || message.direction === "right") {
-      steer = message.direction === "left" ? -0.6 : 0.6;
+      gestureSteer = message.direction === "left" ? -0.6 : 0.6;
       swipeSteerUntil = performance.now() + 400;
     }
   }
@@ -142,6 +142,10 @@ document.addEventListener("keyup", event => {
   if (event.code === "Space") keyBrake = false;
 });
 
+function steering() {
+  return keySteer || (performance.now() < swipeSteerUntil ? gestureSteer : motionSteer);
+}
+
 function draw(now) {
   const dt = Math.min((now - last)/1000, .05);
   last = now;
@@ -150,7 +154,7 @@ function draw(now) {
   if (mode === "race") {
     speed += ((activeBrake ? -220 : activeThrottle * 1.8) - speed * .72) * dt;
     speed = Math.max(0,Math.min(220,speed));
-    const turning = keySteer || ((swipeSteerUntil && performance.now() > swipeSteerUntil) ? 0 : steer);
+    const turning = steering();
     x = Math.max(-1.38,Math.min(1.38,x + turning * dt * (0.3 + speed/130)));
     traveled += speed*dt / 3.6;
   } else speed = 0;
@@ -163,7 +167,7 @@ function draw(now) {
   for(const lane of [315,485]){ctx.beginPath();ctx.moveTo(lane,0);ctx.lineTo(lane,h);ctx.stroke()}
   ctx.setLineDash([]);ctx.lineDashOffset=0;
   const cx=400+x*150, cy=300;
-  ctx.save();ctx.translate(cx,cy);ctx.rotate(-(keySteer||((swipeSteerUntil && performance.now() > swipeSteerUntil) ? 0 : steer))*.08);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-steering()*.08);
   ctx.fillStyle="#131313";ctx.fillRect(-30,-53,60,112);
   ctx.fillStyle="#46db51";ctx.fillRect(-26,-49,52,104);
   ctx.fillStyle="#08381d";ctx.fillRect(-20,-27,40,31);
@@ -173,7 +177,7 @@ function draw(now) {
   ctx.fillText("GYRORED / "+mode.toUpperCase(),22,36);
   ctx.font="16px ui-monospace,monospace";
   ctx.fillText(Math.round(speed)+" km/h",22,64);
-  ctx.fillText("Steering "+Math.round((keySteer||((swipeSteerUntil && performance.now() > swipeSteerUntil) ? 0 : steer))*100)+"%",22,88);
+  ctx.fillText("Steering "+Math.round(steering()*100)+"%",22,88);
   if(mode==="pit"){ctx.fillStyle="#051009d9";ctx.fillRect(190,135,420,150);
     ctx.fillStyle="#b3f8ac";ctx.font="bold 30px system-ui";ctx.fillText("PIT STOP",316,196);
     ctx.font="16px system-ui";ctx.fillText("Use the phone's new pit UIlets",270,233)}
